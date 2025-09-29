@@ -43,7 +43,11 @@ document.addEventListener("DOMContentLoaded", () => {
 					showStatus("Conversion successful!", "success")
 					resetCopyButton()
 				} else {
-					showStatus(output, "error")
+					showStatus("", "error")
+					statusElement.innerHTML = "Invalid format — Expected: BMFont XML"+
+						"\n\n<span style='font-size: 14px;'>"+
+						"Error: "+output.replace(/[<>]/g, m => (m === "<" ? "&lt;" : "&gt;"))
+						+"</span>"
 					outputArea.style.display = "none"
 				}
 			} catch (error) {
