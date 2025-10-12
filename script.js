@@ -1,40 +1,99 @@
 document.addEventListener("DOMContentLoaded", () => {
-	const fileInput = document.getElementById("xmlFile")
-	const fileNameElement = document.getElementById("xmlFileName")
+	let dragOverlay = document.createElement("div")
+	dragOverlay.className = "drag-overlay"
+	dragOverlay.setAttribute("aria-hidden", "true")
+	dragOverlay.innerHTML = `<div>Drop file to convert</div>`
+	document.body.appendChild(dragOverlay)
+
+	let fileInput = document.getElementById("xmlFile")
+	let fileNameElement = document.getElementById("xmlFileName")
 	
-	const outputArea = document.getElementById("outputArea")
-	const outputCodeElement = document.getElementById("outputCode")
-	const copyButton = document.getElementById("copyButton")
+	let outputArea = document.getElementById("outputArea")
+	let outputCodeElement = document.getElementById("outputCode")
+	let copyButton = document.getElementById("copyButton")
 	
-	const statusElement = document.getElementById("status")
+	let statusElement = document.getElementById("status")
 	
+	function showStatus(message, type) {
+		statusElement.textContent = message
+		statusElement.className = `status ${type}`
+		statusElement.style.display = "block"
+	}
+	function clearStatus() {
+		statusElement.textContent = ""
+		statusElement.style.display = "none"
+		statusElement.className = "status"
+	}
+
+	function resetCopyButton() {
+		let buttonText = copyButton.querySelector("span")
+		buttonText.textContent = "Copy"
+		copyButton.disabled = false
+	}
+	copyButton.addEventListener("click", () => {
+		if (!outputCodeElement.textContent) return
+		
+		navigator.clipboard.writeText(outputCodeElement.textContent)
+			.then(() => {
+				let buttonText = copyButton.querySelector("span")
+				let originalText = buttonText.textContent
+				buttonText.textContent = "Copied!"
+				copyButton.disabled = true
+				setTimeout(() => {
+					buttonText.textContent = originalText
+					copyButton.disabled = false
+				}, 1500)
+			})
+			.catch(err => {
+				console.error("Failed to copy text: ", err)
+				showStatus("Failed to copy text to clipboard.", "error")
+			})
+	})
+	
+	let dragCounter = 0
+	document.addEventListener("dragenter", (e) => {
+		dragCounter += 1
+		dragOverlay.classList.add("visible")
+	})
+	document.addEventListener("dragover", (e) => {
+		e.preventDefault()
+	})
+	document.addEventListener("dragleave", (e) => {
+		dragCounter -= 1
+		if (dragCounter == 0) dragOverlay.classList.remove("visible")
+	})
+	document.addEventListener("drop", (e) => {
+		e.preventDefault()
+		dragOverlay.classList.remove("visible")
+		
+		fileInput.files = e.dataTransfer.files
+		handleFileSelect({target: fileInput})
+	})
 	fileInput.addEventListener("change", handleFileSelect)
-	copyButton.addEventListener("click", copyToClipboard)
-	
 	function handleFileSelect(event) {
 		clearStatus()
 		outputArea.style.display = "none"
 		
-		const file = event.target.files[0]
+		let file = event.target.files[0]
 		if (!file) return
 		
 		fileNameElement.textContent = file.name
 		fileNameElement.title = file.name
-		fileNameElement.style = "color: var(--text-color);"
+		fileNameElement.style.color = "var(--text-color)"
 		
-		const allowedExtensions = /(\.xml|\.fnt|\.txt)$/i
+		let allowedExtensions = /(\.xml|\.fnt|\.txt)$/i
 		if (!allowedExtensions.exec(file.name)) {
-			showStatus(`Invalid file type. Select .xml, .fnt, or .txt.`, "error")
+			showStatus("Invalid file type — Expected: xml/fnt/txt", "error")
 			fileInput.value = ""
 			return
 		}
 		
-		const reader = new FileReader()
+		let reader = new FileReader()
 		
 		reader.onload = function(e) {
 			try {
-				const xmlContent = e.target.result
-				const output = convertXMLToLua(xmlContent)
+				let xmlContent = e.target.result
+				let output = convertXMLToLua(xmlContent)
 				
 				if (output.startsWith("{")) {
 					outputCodeElement.textContent = output
@@ -70,13 +129,13 @@ document.addEventListener("DOMContentLoaded", () => {
 	function convertXMLToLua(xml) {
 		xml = xml.replace(/\s+/g, " ").trim()
 		
-		const extractInteger = (elementString, attribute) => {
-			const match = elementString.match(new RegExp(`${attribute}\\s*=\\s*"(-?\\d+)"`))
+		let extractInteger = (elementString, attribute) => {
+			let match = elementString.match(new RegExp(`${attribute}\\s*=\\s*"(-?\\d+)"`))
 			return match ? parseInt(match[1], 10) : null
 		}
 		
 		let fontSize = null
-		const infoMatch = xml.match(/<info([^>]+)>/)
+		let infoMatch = xml.match(/<info([^>]+)>/)
 		if (infoMatch && infoMatch[1]) {
 			fontSize = extractInteger(infoMatch[1], "size")
 			if (fontSize === null || isNaN(fontSize)) {
@@ -89,29 +148,29 @@ document.addEventListener("DOMContentLoaded", () => {
 			return "Missing <info> element."
 		}
 		
-		const characters = []
-		const charRegex = /<char([^>]+)\/>/g
+		let characters = []
+		let charRegex = /<char([^>]+)\/>/g
 		let match = null
 		
 		while ((match = charRegex.exec(xml)) !== null) {
-			const attributes = match[1]
+			let attributes = match[1]
 			
-			const id = extractInteger(attributes, "id")
+			let id = extractInteger(attributes, "id")
 			if (id !== null && !isNaN(id)) {
-				const width = extractInteger(attributes, "width")
-				const height = extractInteger(attributes, "height")
-				const x = extractInteger(attributes, "x")
-				const y = extractInteger(attributes, "y")
-				const xOffset = extractInteger(attributes, "xoffset")
-				const yOffset = extractInteger(attributes, "yoffset")
-				const xAdvance = extractInteger(attributes, "xadvance")
+				let width = extractInteger(attributes, "width")
+				let height = extractInteger(attributes, "height")
+				let x = extractInteger(attributes, "x")
+				let y = extractInteger(attributes, "y")
+				let xOffset = extractInteger(attributes, "xoffset")
+				let yOffset = extractInteger(attributes, "yoffset")
+				let xAdvance = extractInteger(attributes, "xadvance")
 				
 				if ([width, height, x, y, xOffset, yOffset, xAdvance].some(val => val === null || isNaN(val))) {
 					return `Character data for ${id} is missing or invalid.`
 				}
 				
-				const char = String.fromCharCode(id)
-				const escapedChar = char.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")
+				let char = String.fromCharCode(id)
+				let escapedChar = char.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")
 				
 				characters.push(
 					`\t\t["${escapedChar}"] = {${width}, ${height}, Vector2.new(${x}, ${y}), ${xOffset}, ${yOffset}, ${xAdvance}}`
@@ -122,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 		
 		if (characters.length === 0 && xml.includes("<chars") && xml.includes("count=")) {
-			const charsCountMatch = xml.match(/<chars\s+count="(\d+)"/)
+			let charsCountMatch = xml.match(/<chars\s+count="(\d+)"/)
 			if (charsCountMatch && parseInt(charsCountMatch[1], 10) > 0) {
 				return "Found <chars count> indicating characters exist, but couldn't parse any <char .../> elements. Check XML structure."
 			} else if (!charsCountMatch) {
@@ -137,42 +196,5 @@ document.addEventListener("DOMContentLoaded", () => {
 		output += `\n\t}\n}`
 		
 		return output
-	}
-	
-	function copyToClipboard() {
-		if (!outputCodeElement.textContent) return
-		
-		navigator.clipboard.writeText(outputCodeElement.textContent)
-			.then(() => {
-				const buttonText = copyButton.querySelector("span")
-				const originalText = buttonText.textContent
-				buttonText.textContent = "Copied!"
-				copyButton.disabled = true
-				setTimeout(() => {
-					buttonText.textContent = originalText
-					copyButton.disabled = false
-				}, 1500)
-			})
-			.catch(err => {
-				console.error("Failed to copy text: ", err)
-				showStatus("Failed to copy text to clipboard.", "error")
-			})
-	}
-	
-	function resetCopyButton() {
-		const buttonText = copyButton.querySelector("span")
-		buttonText.textContent = "Copy"
-		copyButton.disabled = false
-	}
-	
-	function showStatus(message, type) {
-		statusElement.textContent = message
-		statusElement.className = `status ${type}`
-		statusElement.style.display = "block"
-	}
-	function clearStatus() {
-		statusElement.textContent = ""
-		statusElement.style.display = "none"
-		statusElement.className = "status"
 	}
 })
