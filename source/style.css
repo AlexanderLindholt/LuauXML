@@ -79,6 +79,27 @@ p {
 	text-align: center;
 }
 
+.drag-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: 150ms ease-out;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.5);
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.drag-overlay.visible {
+	opacity: 1;
+}
+
 .inputArea {
 	padding: 16px;
 	display: flex;
@@ -103,6 +124,7 @@ p {
 	border-radius: 8px;
 	background-color: var(--background-color);
 	width: 100%;
+	transition: 100ms ease-out
 }
 .fileName {
 	padding: 8px 16px;
